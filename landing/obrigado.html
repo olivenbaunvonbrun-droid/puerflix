@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instalação do PuerFlix — Chave de Ativação e Download</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #090A0F;
+      --card-bg: #13151F;
+      --card-border: #1E2235;
+      --primary: #6366F1;
+      --primary-hover: #4F46E5;
+      --accent: #F43F5E;
+      --gold: #F59E0B;
+      --green: #10B981;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Space Grotesk', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-main);
+      line-height: 1.6;
+      padding-bottom: 60px;
+    }
+
+    .container {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Header */
+    .top-header {
+      padding: 24px 0;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    .logo-text span {
+      color: #EC4899;
+    }
+
+    /* Success Hero */
+    .hero-success {
+      text-align: center;
+      padding: 40px 0 30px;
+    }
+
+    .success-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #34D399;
+      margin-bottom: 20px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .hero-sub {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* License Key Box */
+    .license-card {
+      background: linear-gradient(180deg, #181B2B 0%, #111320 100%);
+      border: 2px solid var(--primary);
+      border-radius: 24px;
+      padding: 32px;
+      margin: 24px 0 40px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(99, 102, 241, 0.25);
+      text-align: center;
+      position: relative;
+    }
+
+    .license-tag {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #A5B4FC;
+      margin-bottom: 10px;
+    }
+
+    .key-display-box {
+      background: #090A0F;
+      border: 1px dashed rgba(99, 102, 241, 0.6);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .key-code {
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 800;
+      color: #F8FAFC;
+      letter-spacing: 2px;
+      word-break: break-all;
+    }
+
+    .btn-copy {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-copy:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+
+    .license-details {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      font-size: 13px;
+      color: #94A3B8;
+      margin-top: 14px;
+    }
+
+    .license-details span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .security-notice {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #FDE68A;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* Big Installation CTA */
+    .download-section {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .btn-download-main {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: #FFFFFF;
+      font-size: 20px;
+      font-weight: 800;
+      padding: 20px 48px;
+      border-radius: 40px;
+      text-decoration: none;
+      box-shadow: 0 12px 35px rgba(16, 185, 129, 0.4);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      width: 100%;
+      max-width: 620px;
+    }
+
+    .btn-download-main:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 16px 45px rgba(16, 185, 129, 0.6);
+    }
+
+    .download-meta {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-top: 12px;
+    }
+
+    /* Visual 3 Steps Guide */
+    .steps-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px 30px;
+      margin-bottom: 40px;
+    }
+
+    .steps-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .steps-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .steps-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .step-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      background: #171A27;
+      border: 1px solid #23273A;
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.25s ease;
+    }
+
+    .step-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .step-num {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #FFFFFF;
+      font-size: 20px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .step-content h4 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 6px;
+    }
+
+    .step-content p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .step-content .step-tip {
+      display: inline-block;
+      margin-top: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #CBD5E1;
+    }
+
+    /* Support Callout */
+    .support-callout {
+      text-align: center;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 20px;
+      padding: 28px;
+    }
+
+    .btn-whatsapp {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #25D366;
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 12px 24px;
+      border-radius: 30px;
+      text-decoration: none;
+      margin-top: 16px;
+      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .btn-whatsapp:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5);
+    }
+
+    @media (max-width: 600px) {
+      .key-display-box {
+        flex-direction: column;
+        text-align: center;
+      }
+      .key-code {
+        font-size: 20px;
+      }
+      .btn-download-main {
+        font-size: 17px;
+        padding: 16px 24px;
+      }
+      .step-card {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="top-header">
+    <div class="container">
+      <a href="index.html" class="logo-container">
+        <img src="assets/logo.png" alt="PuerFlix Logo" class="logo-img" onerror="this.src='assets/icon.png'">
+        <span class="logo-text">PUER<span>FLIX</span></span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero / Status -->
+    <div class="hero-success">
+      <div class="success-badge">
+        <span>✓</span> Pagamento Aprovado com Sucesso!
+      </div>
+      <h1 class="hero-title">Seu PuerFlix Está Pronto para Instalação</h1>
+      <p class="hero-sub">
+        Copie sua chave de licença pessoal abaixo e siga o passo a passo de 3 minutos para blindar o tablet do seu filho.
+      </p>
+    </div>
+
+    <!-- Personal License Key Card -->
+    <div class="license-card">
+      <div class="license-tag">Sua Chave de Ativação Exclusiva</div>
+      
+      <div class="key-display-box">
+        <span class="key-code" id="licenseKeyCode">PUER-VIP-2026-PAIS</span>
+        <button class="btn-copy" onclick="copyLicenseKey()">
+          <span id="copyBtnIcon">📋</span>
+          <span id="copyBtnText">Copiar Chave</span>
+        </button>
+      </div>
+
+      <div class="license-details">
+        <span>📦 <strong id="planNameDisplay">Plano Anual Seguro (2 Aparelhos)</strong></span>
+        <span>🔒 Status: <strong style="color: #34D399;">Liberada para Ativar</strong></span>
+      </div>
+
+      <div class="security-notice">
+        <strong>🔒 Proteção Anti-Pirataria por Hardware:</strong> Ao inserir esta chave no tablet, o PuerFlix vinculará sua licença exclusivamente àquele dispositivo. Se você enviar o arquivo do aplicativo para outra pessoa, ele não funcionará no tablet dela sem uma chave própria.
+      </div>
+    </div>
+
+    <!-- Download Section -->
+    <div class="download-section">
+      <a href="../puertube.apk" download="PuerFlix_Oficial.apk" class="btn-download-main" id="btnDownloadApk">
+        <span>⬇️ Baixar e Instalar no Tablet Android</span>
+      </a>
+      <div class="download-meta">
+        Arquivo oficial verificado (.apk) • Compatível com Android 7.0 até 15+ • Sem vírus
+      </div>
+    </div>
+
+    <!-- 3-Step Visual Installation Guide -->
+    <div class="steps-section">
+      <div class="steps-header">
+        <h3 class="steps-title">Como Ativar em Apenas 3 Minutos</h3>
+        <p style="color: var(--text-muted); font-size: 14px;">Guia simples e direto para qualquer modelo de tablet ou celular Android.</p>
+      </div>
+
+      <div class="steps-grid">
+        <!-- Passo 1 -->
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Baixe o Instalador Oficial</h4>
+            <p>
+              Abra esta página no tablet do seu filho e toque no botão verde acima <strong>"Baixar e Instalar no Tablet Android"</strong>. Aguarde o download do arquivo <code>PuerFlix_Oficial.apk</code> ser concluído na barra de notificações.
+            </p>
+          </div>
+        </div>
+
+        <!-- Passo 2 -->
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Autorize a Instalação no Android</h4>
+            <p>
+              Toque no arquivo baixado para abrir. Se o Android exibir o aviso padrão <em>"Para sua segurança, seu smartphone/tablet não tem permissão para instalar apps desconhecidos desta fonte"</em>, basta tocar em <strong>Configurações</strong> e ativar a opção <strong>"Permitir desta fonte"</strong>. Depois toque em <strong>Instalar</strong>.
+            </p>
+            <div class="step-tip">
+              💡 Este aviso é um procedimento padrão do Android para qualquer app seguro instalado fora da Play Store.
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 3 -->
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>Cole sua Chave e Comece a Usar!</h4>
+            <p>
+              Abra o aplicativo <strong>PuerFlix</strong>. Na primeira tela, cole a sua <strong>Chave de Ativação</strong> que você copiou acima e toque em <strong>Ativar Licença</strong>. Pronto! O tablet está blindado e pronto para seu filho se divertir com total segurança.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Support Callout -->
+    <div class="support-callout">
+      <h4 style="font-size: 18px; font-weight: 700; color: #FFFFFF; margin-bottom: 6px;">Precisa de Ajuda para Instalar?</h4>
+      <p style="color: var(--text-muted); font-size: 14px; max-width: 520px; margin: 0 auto;">
+        Nossa equipe de suporte técnico para pais está à disposição para guiar você passo a passo até o app estar funcionando no seu tablet.
+      </p>
+      <a href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Acabei%20de%20adquirir%20o%20PuerFlix%20e%20gostaria%20de%20ajuda%20na%20instala%C3%A7%C3%A3o." target="_blank" class="btn-whatsapp">
+        <span>💬 Chamar Suporte VIP no WhatsApp</span>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    // Algorithmic Key Generator matching PuerFlix LicenseService
+    function generateValidLicenseKey() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let b1 = '';
+      let b2 = '';
+      for (let i = 0; i < 4; i++) {
+        b1 += chars.charAt(Math.floor(Math.random() * chars.length));
+        b2 += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      let sum = 0;
+      for (let i = 0; i < 4; i++) {
+        sum += b1.charCodeAt(i) * 3 + b2.charCodeAt(i) * 7;
+      }
+      const expectedCheckHex = (sum % 256).toString(16).toUpperCase().padStart(2, '0');
+      const b3FirstTwo = chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length));
+      const b3 = b3FirstTwo + expectedCheckHex;
+
+      return `PUER-${b1}-${b2}-${b3}`;
+    }
+
+    // Extract URL parameters or generate key
+    const urlParams = new URLSearchParams(window.location.search);
+    let key = urlParams.get('key') || urlParams.get('license');
+    const plan = urlParams.get('plan') || 'anual';
+    const devices = urlParams.get('devices') || (plan === 'vitalicio' ? '5' : (plan === 'semestral' ? '1' : '2'));
+
+    if (!key) {
+      key = generateValidLicenseKey();
+    }
+
+    // Set UI displays
+    document.getElementById('licenseKeyCode').innerText = key;
+
+    const planNames = {
+      semestral: 'Plano Semestral (1 Aparelho)',
+      anual: 'Plano Anual Seguro (2 Aparelhos)',
+      vitalicio: 'Plano Fundador Vitalício (5 Aparelhos)',
+    };
+    document.getElementById('planNameDisplay').innerText = planNames[plan] || `Plano Familiar (${devices} Aparelhos)`;
+
+    // Configure APK download link
+    const downloadBtn = document.getElementById('btnDownloadApk');
+    if (downloadBtn) {
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        downloadBtn.href = '/puertube.apk';
+      } else {
+        // Production release URL on GitHub / CDN
+        downloadBtn.href = 'https://github.com/olivenbaunvonbrun-droid/puerflix/releases/download/v1.0.0/PuerFlix_Oficial.apk';
+      }
+    }
+
+    // Copy to clipboard
+    function copyLicenseKey() {
+      navigator.clipboard.writeText(key).then(() => {
+        const btnText = document.getElementById('copyBtnText');
+        const btnIcon = document.getElementById('copyBtnIcon');
+        btnText.innerText = 'Copiada!';
+        btnIcon.innerText = '✓';
+        setTimeout(() => {
+          btnText.innerText = 'Copiar Chave';
+          btnIcon.innerText = '📋';
+        }, 3000);
+      }).catch(() => {
+        alert('Chave copiada: ' + key);
+      });
+    }
+  </script>
+</body>
+</html>

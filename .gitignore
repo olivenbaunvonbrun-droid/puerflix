@@ -39,3 +39,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Large binaries (Host on GitHub Releases instead)
+*.apk
+puertube.apk
+
+# Temporary files
+test_pil.py
+generate_splash.py
+data/
