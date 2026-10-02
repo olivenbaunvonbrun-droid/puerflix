@@ -483,14 +483,27 @@
   </main>
 
   <script>
-    // Algorithmic Key Generator matching PuerFlix LicenseService
-    function generateValidLicenseKey() {
+    // Algorithmic Key Generator matching PuerFlix LicenseService with deterministic seeding
+    function generateValidLicenseKey(seed) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let rng = Math.random;
+      if (seed && typeof seed === 'string' && seed.length > 0) {
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+          hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+          hash |= 0;
+        }
+        rng = function() {
+          hash = (hash * 9301 + 49297) % 233280;
+          return Math.abs(hash) / 233280;
+        };
+      }
+
       let b1 = '';
       let b2 = '';
       for (let i = 0; i < 4; i++) {
-        b1 += chars.charAt(Math.floor(Math.random() * chars.length));
-        b2 += chars.charAt(Math.floor(Math.random() * chars.length));
+        b1 += chars.charAt(Math.floor(rng() * chars.length));
+        b2 += chars.charAt(Math.floor(rng() * chars.length));
       }
 
       let sum = 0;
@@ -498,20 +511,47 @@
         sum += b1.charCodeAt(i) * 3 + b2.charCodeAt(i) * 7;
       }
       const expectedCheckHex = (sum % 256).toString(16).toUpperCase().padStart(2, '0');
-      const b3FirstTwo = chars.charAt(Math.floor(Math.random() * chars.length)) + chars.charAt(Math.floor(Math.random() * chars.length));
+      const b3FirstTwo = chars.charAt(Math.floor(rng() * chars.length)) + chars.charAt(Math.floor(rng() * chars.length));
       const b3 = b3FirstTwo + expectedCheckHex;
 
       return `PUER-${b1}-${b2}-${b3}`;
     }
 
-    // Extract URL parameters or generate key
+    // Extract URL parameters
     const urlParams = new URLSearchParams(window.location.search);
-    let key = urlParams.get('key') || urlParams.get('license');
     const plan = urlParams.get('plan') || 'anual';
     const devices = urlParams.get('devices') || (plan === 'vitalicio' ? '5' : (plan === 'semestral' ? '1' : '2'));
+    
+    // Check for buyer / transaction identifiers from Kiwify / Hotmart / Stripe
+    const orderId = urlParams.get('order_id') || urlParams.get('order_ref') || urlParams.get('id') || urlParams.get('transaction');
+    const customerEmail = urlParams.get('email') || urlParams.get('customer_email') || urlParams.get('buyer_email');
+    let explicitKey = urlParams.get('key') || urlParams.get('license');
 
-    if (!key) {
-      key = generateValidLicenseKey();
+    // If explicitKey is the generic template, treat it as requesting an individual key
+    if (explicitKey === 'PUER-GH4G-6L9H-6J33') {
+      explicitKey = null;
+    }
+
+    // Determine unique client key with persistence
+    let key = '';
+    const storageKey = orderId ? `puerflix_key_${orderId}` : 'puerflix_buyer_license';
+
+    if (explicitKey) {
+      key = explicitKey;
+      try { localStorage.setItem(storageKey, key); } catch(e) {}
+    } else {
+      // Check localStorage first so buyer always sees the same key on refresh
+      let saved = null;
+      try { saved = localStorage.getItem(storageKey); } catch(e) {}
+
+      if (saved) {
+        key = saved;
+      } else {
+        // Generate unique key using orderId or email as seed, or random crypto timestamp
+        const seed = orderId || customerEmail || (Date.now().toString(36) + Math.random().toString(36));
+        key = generateValidLicenseKey(seed);
+        try { localStorage.setItem(storageKey, key); } catch(e) {}
+      }
     }
 
     // Set UI displays
