@@ -20,47 +20,6 @@ interface SafePlayerProps {
   customWidth?: number;
 }
 
-// Injected CSS to hide the YouTube watermark logo and title links
-// IMPORTANT: We do NOT hide .video-ads or .ytp-ad-module via CSS!
-// YouTube's player measures computed styles of ad containers.
-// Hiding them trips the anti-adblock bot check ("Faça login para confirmar que você não é um bot").
-const INJECTED_SAFETY_SCRIPT = `
-(function() {
-  function applyStyles() {
-    var style = document.getElementById('puertube-safety-styles');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'puertube-safety-styles';
-      style.innerHTML = \`
-        .ytp-impression-link,
-        .ytp-youtube-button,
-        .ytp-title-link,
-        .ytp-watermark,
-        .ytp-pause-overlay,
-        .ytp-share-button {
-          display: none !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-        }
-      \`;
-      (document.head || document.documentElement).appendChild(style);
-    }
-  }
-
-  applyStyles();
-  document.addEventListener('DOMContentLoaded', applyStyles);
-  if (window.MutationObserver) {
-    try {
-      var observer = new MutationObserver(applyStyles);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-    } catch(e) {}
-  }
-
-  // Prevent window.open calls from opening external browser popups
-  window.open = function() { return null; };
-})();
-true;
-`;
 
 export const SafePlayer: React.FC<SafePlayerProps> = ({
   videoId,
@@ -128,6 +87,9 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           width={playerWidth}
           play={true}
           videoId={videoId}
+          useLocalHTML={true}
+          baseUrlOverride="https://puerflix.vercel.app"
+          forceAndroidAutoplay={false}
           onReady={() => {
             setLoading(false);
             if (onReady) onReady();
@@ -158,8 +120,10 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
             mediaPlaybackRequiresUserAction: false,
             setSupportMultipleWindows: false,
             javaScriptCanOpenWindowsAutomatically: false,
+            clearCache: true,
             originWhitelist: ['*'],
-            injectedJavaScript: INJECTED_SAFETY_SCRIPT,
+            userAgent:
+              'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             onShouldStartLoadWithRequest: (request: any) => {
               const url = request.url || '';
 
@@ -185,8 +149,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
                 return false;
               }
 
-              // 3. ALLOW all other requests (player assets, video streams, Google APIs, recaptcha)
-              // Crucial: blocking Google integrity APIs was what previously caused the bot challenge!
+              // 3. ALLOW all player assets, video streams, Google APIs, recaptcha, auth
               return true;
             },
           }}

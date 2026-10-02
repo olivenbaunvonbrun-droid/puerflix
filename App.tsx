@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, View, BackHandler, Platform } from 'react-native';
+import { StyleSheet, View, BackHandler, Platform, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -106,6 +106,29 @@ export default function App() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
+      // 1. Check device license & One-Click URL activation immediately
+      let currentLicense = await LicenseService.getStoredLicense();
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+        const params = new URLSearchParams(window.location.search);
+        const urlKey = params.get('activate') || params.get('key') || params.get('license');
+        if (urlKey) {
+          setInitialLicenseKey(urlKey);
+          const actResult = await LicenseService.activateLicense(urlKey);
+          if (actResult.valid && actResult.license) {
+            currentLicense = actResult.license;
+          }
+        }
+      }
+
+      if (currentLicense && currentLicense.isLicensed) {
+        setIsLicensed(true);
+        setActiveLicense(currentLicense);
+      } else {
+        setIsLicensed(false);
+        setLoading(false);
+        return;
+      }
+
       const [
         savedChannels,
         savedCategories,
@@ -143,27 +166,6 @@ export default function App() {
           }
           await StorageService.loadCloudAccountData(cloudData);
         }
-      }
-
-      // Check device license & One-Click URL activation
-      let currentLicense = await LicenseService.getStoredLicense();
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-        const params = new URLSearchParams(window.location.search);
-        const urlKey = params.get('activate') || params.get('key') || params.get('license');
-        if (urlKey) {
-          setInitialLicenseKey(urlKey);
-          const actResult = await LicenseService.activateLicense(urlKey);
-          if (actResult.valid && actResult.license) {
-            currentLicense = actResult.license;
-          }
-        }
-      }
-
-      if (currentLicense && currentLicense.isLicensed) {
-        setIsLicensed(true);
-        setActiveLicense(currentLicense);
-      } else {
-        setIsLicensed(false);
       }
 
       // Check URL for ?import=PF-XXXXX or ?code=...
@@ -627,6 +629,24 @@ export default function App() {
   const isWeb = Platform.OS === 'web';
   const safeEdges: ('top' | 'left' | 'right')[] = isWeb ? [] : ['top', 'left', 'right'];
 
+  // Loading Splash Screen while checking License / Initial boot
+  if (isLicensed === null) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView
+          style={[styles.safeArea, { backgroundColor: '#0F0F11', justifyContent: 'center', alignItems: 'center' }]}
+          edges={safeEdges}
+        >
+          <StatusBar style="light" />
+          <ActivityIndicator size="large" color="#E50914" />
+          <Text style={{ color: '#E2E8F0', marginTop: 14, fontSize: 15, fontWeight: '600' }}>
+            Iniciando PuerFlix...
+          </Text>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   // Anti-Piracy / Commercial Hardware Lock Gate
   if (isLicensed === false) {
     return (
@@ -638,6 +658,7 @@ export default function App() {
             onActivationSuccess={(lic) => {
               setActiveLicense(lic);
               setIsLicensed(true);
+              void loadInitialData();
             }}
           />
         </SafeAreaView>
