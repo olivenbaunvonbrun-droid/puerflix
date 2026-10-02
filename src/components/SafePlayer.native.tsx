@@ -149,6 +149,8 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           width={playerWidth}
           play={true}
           videoId={videoId}
+          useLocalHTML={true}
+          baseUrlOverride="https://puerflix.vercel.app"
           onReady={() => {
             setLoading(false);
             if (onReady) onReady();
@@ -173,34 +175,34 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
             allowsFullscreenVideo: true,
             androidHardwareAccelerationDisabled: false,
             androidLayerType: 'hardware',
+            domStorageEnabled: true,
+            thirdPartyCookiesEnabled: true,
+            sharedCookiesEnabled: true,
+            mediaPlaybackRequiresUserAction: false,
+            userAgent:
+              'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             setSupportMultipleWindows: false,
             javaScriptCanOpenWindowsAutomatically: false,
             originWhitelist: ['*'],
             injectedJavaScript: INJECTED_BLOCK_REDIRECT_SCRIPT,
             onShouldStartLoadWithRequest: (request: any) => {
               const url = request.url || '';
-              // Allow embed essentials and block watch/channel/external app redirects
+              // Intercept and prevent external app launches and direct watch/channel URL escapes
               if (
-                url.startsWith('https://lonelycpp.github.io') ||
-                url.startsWith('https://www.youtube.com/embed') ||
-                url.startsWith('https://www.youtube-nocookie.com/embed') ||
-                url.includes('googlevideo.com') ||
-                url.includes('google.com/recaptcha') ||
-                url === 'about:blank'
+                url.startsWith('intent://') ||
+                url.startsWith('vnd.youtube') ||
+                url.startsWith('market://') ||
+                url.includes('youtube.com/watch') ||
+                url.includes('youtube.com/channel') ||
+                url.includes('youtube.com/c/') ||
+                url.includes('youtube.com/@') ||
+                url.includes('youtube.com/user') ||
+                url.includes('youtube.com/redirect')
               ) {
-                if (
-                  url.includes('youtube.com/watch') ||
-                  url.includes('youtube.com/channel') ||
-                  url.includes('youtube.com/user') ||
-                  url.startsWith('intent://') ||
-                  url.startsWith('vnd.youtube')
-                ) {
-                  return false;
-                }
-                return true;
+                return false;
               }
-              // Block all other external navigations
-              return false;
+              // Allow all player assets, Google integrity verification APIs, and video streams
+              return true;
             },
           }}
         />
