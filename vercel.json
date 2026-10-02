@@ -1,13 +1,8 @@
 {
+  "outputDirectory": "landing",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/landing/index.html" },
-    { "source": "/index.html", "destination": "/landing/index.html" },
-    { "source": "/obrigado", "destination": "/landing/obrigado.html" },
-    { "source": "/obrigado.html", "destination": "/landing/obrigado.html" },
-    { "source": "/instalar", "destination": "/landing/obrigado.html" },
-    { "source": "/instalar.html", "destination": "/landing/obrigado.html" },
-    { "source": "/assets/(.*)", "destination": "/landing/assets/$1" },
-    { "source": "/landing/(.*)", "destination": "/landing/$1" }
+    { "source": "/obrigado", "destination": "/obrigado.html" },
+    { "source": "/instalar", "destination": "/obrigado.html" }
   ]
 }
