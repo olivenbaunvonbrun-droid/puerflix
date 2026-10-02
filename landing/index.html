@@ -1307,6 +1307,10 @@
 
     // Checkout redirect logic (simulates checkout or connects to Hotmart/Kiwify/Stripe webhook)
     function goToCheckout(planId, price, devices) {
+      if (planId === 'anual') {
+        window.location.href = 'https://pay.kiwify.com.br/3ORT5ax';
+        return;
+      }
       const simulatedKey = generateValidLicenseKey();
       // Redirect to delivery/installation page with unique key and plan metadata
       const deliveryUrl = `obrigado.html?plan=${planId}&key=${simulatedKey}&devices=${devices}`;

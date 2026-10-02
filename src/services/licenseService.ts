@@ -12,6 +12,7 @@ const MASTER_KEYS: Record<string, { planName: string; maxDevices: number }> = {
   'PUER-DEMO-KIDS-SAFE': { planName: 'Acesso Demonstração Familiar', maxDevices: 3 },
   'PUER-TEST-9999-BETA': { planName: 'Licença Beta Tester', maxDevices: 1 },
   'PUER-BRUNO-PRO-2026': { planName: 'Licença Master Administrador', maxDevices: 10 },
+  'PUER-GH4G-6L9H-6J33': { planName: 'Plano Anual Seguro', maxDevices: 2 },
 };
 
 /**
