@@ -222,16 +222,32 @@ export default function App() {
 
       // Instant Cache Load (Zero-Delay Cold Start)
       const cachedVideos = await StorageService.getCachedVideos();
-      if (cachedVideos && cachedVideos.length > 0) {
+      const hasCache = cachedVideos && cachedVideos.length > 0;
+      if (hasCache) {
         setVideos(cachedVideos);
         setLoading(false);
       }
 
-      // Fetch fresh videos from enabled channels
-      const feedVideos = await YouTubeService.fetchFeed(currentChannels);
-      if (feedVideos && feedVideos.length > 0) {
-        setVideos(feedVideos);
-        await StorageService.saveCachedVideos(feedVideos);
+      // If no cache exists yet, fetch now; if cache exists, defer refresh to background
+      if (!hasCache) {
+        const feedVideos = await YouTubeService.fetchFeed(currentChannels);
+        if (feedVideos && feedVideos.length > 0) {
+          setVideos(feedVideos);
+          await StorageService.saveCachedVideos(feedVideos);
+        }
+      } else {
+        // Background refresh deferred by 1200ms so the UI and GPU finish mounting with 0 hitching
+        setTimeout(async () => {
+          try {
+            const feedVideos = await YouTubeService.fetchFeed(currentChannels);
+            if (feedVideos && feedVideos.length > 0) {
+              setVideos(feedVideos);
+              await StorageService.saveCachedVideos(feedVideos);
+            }
+          } catch (err) {
+            console.warn('Background feed refresh:', err);
+          }
+        }, 1200);
       }
     } catch (e) {
       console.error('Error initializing PuerFlix:', e);

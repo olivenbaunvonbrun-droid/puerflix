@@ -6,10 +6,11 @@ import {
   useWindowDimensions,
   Text,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { THEME } from '../constants/theme';
-import { ShieldCheck, Maximize2, RefreshCw } from 'lucide-react-native';
+import { ShieldCheck, Maximize2, RefreshCw, LogIn, X } from 'lucide-react-native';
 
 interface SafePlayerProps {
   videoId: string;
@@ -20,56 +21,56 @@ interface SafePlayerProps {
   customWidth?: number;
 }
 
-type EngineMode = 'nocookie' | 'cloud' | 'standard';
+type EngineMode = 'nocookie' | 'direct' | 'cloud';
 
-// Safe containment script:
-// 1. Removes YouTube watermark, YouTube logo button, and title links
-// 2. Disables window.open to prevent popup escapes
-// 3. IMPORTANT: DO NOT inject CSS targeting .video-ads or .ytp-ad-module!
-//    YouTube's anti-adblock bot detection inspects ad slot dimensions.
-//    Hiding ad containers via display:none triggers "Faça login para confirmar que você não é um bot".
-const SAFE_CONTAINMENT_SCRIPT = `
-(function() {
-  function applyContainment() {
-    var style = document.getElementById('puerflix-containment-styles');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'puerflix-containment-styles';
-      style.innerHTML = \`
-        .ytp-impression-link,
-        .ytp-youtube-button,
-        .ytp-title-link,
-        .ytp-title,
-        .ytp-watermark,
-        .ytp-pause-overlay,
-        .ytp-share-button,
-        .ytp-show-cards-title,
-        .ytp-overflow-button,
-        .ytp-contextmenu {
-          display: none !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-          visibility: hidden !important;
-        }
-      \`;
-      (document.head || document.documentElement).appendChild(style);
+// Clean standard Chrome Mobile User-Agent without the "; wv" and "Version/4.0" tokens.
+// Google uses "; wv" to identify Android WebViews and trigger bot challenges.
+const REAL_CHROME_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36';
+
+// Generates an HTML proxy document that embeds YouTube with a verified HTTPS origin and referrer headers.
+// This ELIMINATES Error 153 (which occurs when embed URLs are loaded directly without an HTTP Referer header).
+const getEmbedHtml = (videoId: string, mode: 'nocookie' | 'direct'): string => {
+  const host = mode === 'nocookie' ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com';
+  const embedUrl = `${host}/embed/${encodeURIComponent(
+    videoId
+  )}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1&origin=https://puerflix.vercel.app&widget_referrer=https://puerflix.vercel.app`;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; background-color:#000000; overflow:hidden; }
+    #player-wrap { width:100%; height:100%; position:relative; display:flex; align-items:center; justify-content:center; }
+    iframe { width:100%; height:100%; border:none; background:#000; }
+    /* Child safety: hide external logo watermark and share buttons without tripping adblock checks */
+    .ytp-impression-link,
+    .ytp-youtube-button,
+    .ytp-title-link,
+    .ytp-watermark,
+    .ytp-share-button {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
-  }
-
-  applyContainment();
-  document.addEventListener('DOMContentLoaded', applyContainment);
-  if (window.MutationObserver) {
-    try {
-      var observer = new MutationObserver(applyContainment);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-    } catch(e) {}
-  }
-
-  // Prevent window.open calls to open external browsers
-  window.open = function() { return null; };
-})();
-true;
-`;
+  </style>
+</head>
+<body>
+  <div id="player-wrap">
+    <iframe
+      src="${embedUrl}"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+      allowfullscreen
+    ></iframe>
+  </div>
+</body>
+</html>`;
+};
 
 export const SafePlayer: React.FC<SafePlayerProps> = ({
   videoId,
@@ -82,6 +83,8 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
   const [loading, setLoading] = useState(true);
   const [measuredWidth, setMeasuredWidth] = useState<number>(0);
   const [engineMode, setEngineMode] = useState<EngineMode>('nocookie');
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+  const [reloadKey, setReloadKey] = useState<number>(0);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isTablet = windowWidth >= 768;
 
@@ -99,27 +102,12 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
     ? windowHeight
     : Math.floor((playerWidth * 9) / 16);
 
-  // Build the target embed URL based on active engine
-  let activeUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(
-    videoId
-  )}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`;
-
-  if (engineMode === 'cloud') {
-    activeUrl = `https://puerflix.vercel.app/player?v=${encodeURIComponent(
-      videoId
-    )}&mode=nocookie`;
-  } else if (engineMode === 'standard') {
-    activeUrl = `https://www.youtube.com/embed/${encodeURIComponent(
-      videoId
-    )}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`;
-  }
-
   const cycleEngine = () => {
     setLoading(true);
     if (engineMode === 'nocookie') {
       setEngineMode('cloud');
     } else if (engineMode === 'cloud') {
-      setEngineMode('standard');
+      setEngineMode('direct');
     } else {
       setEngineMode('nocookie');
     }
@@ -128,13 +116,24 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
   const getEngineLabel = () => {
     switch (engineMode) {
       case 'nocookie':
-        return 'Servidor 1 (Sem Rastreio)';
+        return 'Motor 1 (Sem Rastreio)';
       case 'cloud':
-        return 'Servidor 2 (Nuvem PuerFlix)';
-      case 'standard':
-        return 'Servidor 3 (YouTube Direto)';
+        return 'Motor 2 (Nuvem PuerFlix)';
+      case 'direct':
+        return 'Motor 3 (YouTube Oficial)';
     }
   };
+
+  // Determine source:
+  // For 'nocookie' and 'direct', we use HTML with baseUrl 'https://puerflix.vercel.app'
+  // so the parent document sends a valid Referer header, completely eliminating Error 153.
+  const webViewSource =
+    engineMode === 'cloud'
+      ? { uri: `https://puerflix.vercel.app/player?v=${encodeURIComponent(videoId)}&mode=nocookie` }
+      : {
+          html: getEmbedHtml(videoId, engineMode),
+          baseUrl: 'https://puerflix.vercel.app',
+        };
 
   const handleShouldStartLoad = (request: any) => {
     const url = request.url || '';
@@ -148,7 +147,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
       return false;
     }
 
-    // 2. Prevent escaping to general YouTube browsing, channels, or watch pages
+    // 2. Prevent child escaping to YouTube search, channels, or watch pages
     if (
       url.includes('youtube.com/watch') ||
       url.includes('youtube.com/channel') ||
@@ -162,8 +161,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
     }
 
     // 3. ALLOW human verification and Google accounts inside the player WebView
-    // If YouTube prompts "Faça login para confirmar que você não é um bot",
-    // the user CAN complete the login/captcha once, saving cookies in Android WebView permanently!
+    // If YouTube prompts for login/captcha, the parent can complete it
     if (
       url.includes('accounts.google.com') ||
       url.includes('google.com/signin') ||
@@ -175,7 +173,6 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
       return true;
     }
 
-    // 4. Allow player embeds, media streams, and assets
     return true;
   };
 
@@ -210,13 +207,14 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         )}
 
         <WebView
-          key={`${videoId}-${engineMode}`}
-          source={{ uri: activeUrl }}
+          key={`${videoId}-${engineMode}-${reloadKey}`}
+          source={webViewSource}
           style={{
             width: playerWidth,
             height: playerHeight,
             backgroundColor: '#000000',
           }}
+          userAgent={REAL_CHROME_USER_AGENT}
           allowsFullscreenVideo={true}
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
@@ -228,7 +226,6 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           androidHardwareAccelerationDisabled={false}
           androidLayerType="hardware"
           originWhitelist={['*']}
-          injectedJavaScript={SAFE_CONTAINMENT_SCRIPT}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => {
@@ -255,8 +252,17 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
               onPress={cycleEngine}
               activeOpacity={0.8}
             >
-              <RefreshCw size={12} color="#D4D4D4" />
+              <RefreshCw size={11} color="#D4D4D4" />
               <Text style={styles.engineBtnText}>{getEngineLabel()}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.loginBtn}
+              onPress={() => setShowLoginModal(true)}
+              activeOpacity={0.8}
+            >
+              <LogIn size={11} color="#38BDF8" />
+              <Text style={styles.loginBtnText}>Login Google</Text>
             </TouchableOpacity>
 
             {onToggleFullScreen && (
@@ -266,13 +272,65 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
                 activeOpacity={0.8}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Maximize2 size={13} color="#FFFFFF" />
+                <Maximize2 size={12} color="#FFFFFF" />
                 <Text style={styles.fullscreenBtnText}>Tela Cheia</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
       )}
+
+      {/* Google Login & Human Verification Modal for Parents */}
+      <Modal
+        visible={showLoginModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowLoginModal(false)}
+      >
+        <View style={styles.loginModalContainer}>
+          <View style={styles.loginModalHeader}>
+            <View>
+              <Text style={styles.loginModalTitle}>Autenticação Google (Pais)</Text>
+              <Text style={styles.loginModalSub}>
+                Faça login uma vez para validar seu aparelho e liberar os vídeos.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.loginCloseBtn}
+              onPress={() => {
+                setShowLoginModal(false);
+                setReloadKey((prev) => prev + 1);
+              }}
+            >
+              <X size={18} color="#FFFFFF" />
+              <Text style={styles.loginCloseText}>Concluído</Text>
+            </TouchableOpacity>
+          </View>
+
+          <WebView
+            source={{
+              uri: 'https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com',
+            }}
+            userAgent={REAL_CHROME_USER_AGENT}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            sharedCookiesEnabled={true}
+            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+            onNavigationStateChange={(navState) => {
+              if (
+                navState.url.includes('youtube.com') &&
+                !navState.url.includes('signin') &&
+                !navState.url.includes('accounts.google.com')
+              ) {
+                // Successfully authenticated
+                setShowLoginModal(false);
+                setReloadKey((prev) => prev + 1);
+              }
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -332,9 +390,41 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   engineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#2C2C2E',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+  },
+  engineBtnText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D4D4D4',
+  },
+  loginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#0284C7',
+  },
+  loginBtnText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#38BDF8',
+  },
+  fullscreenBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -343,25 +433,51 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#3F3F46',
-  },
-  engineBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#D4D4D4',
-  },
-  fullscreenBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 1,
     borderColor: '#48484A',
   },
   fullscreenBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  /* Login Modal */
+  loginModalContainer: {
+    flex: 1,
+    backgroundColor: '#18181B',
+  },
+  loginModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+    backgroundColor: '#18181B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272A',
+  },
+  loginModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  loginModalSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+    maxWidth: 260,
+  },
+  loginCloseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  loginCloseText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',

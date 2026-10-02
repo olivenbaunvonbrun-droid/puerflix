@@ -120,6 +120,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [visibleChannelVideoCount, setVisibleChannelVideoCount] = useState<number>(18);
+  const [renderedRailsCount, setRenderedRailsCount] = useState<number>(6);
   const { width } = useWindowDimensions();
 
   // Responsive grid calculation for phones and tablets
@@ -428,8 +429,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 />
               )}
 
-              {/* 4. INDIVIDUAL NETFLIX RAILS FOR EACH ACTIVE CHANNEL */}
-              {enabledChannels.map((channel) => {
+              {/* 4. INDIVIDUAL NETFLIX RAILS FOR EACH ACTIVE CHANNEL (Windowed for 60 FPS performance) */}
+              {enabledChannels.slice(0, renderedRailsCount).map((channel) => {
                 const channelVideos = channelVideosMap.get(channel.id) || [];
                 if (channelVideos.length === 0) return null;
 
@@ -443,6 +444,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   />
                 );
               })}
+
+              {/* Show more channels button when catalog has more than 6 channels */}
+              {enabledChannels.length > renderedRailsCount && (
+                <TouchableOpacity
+                  style={styles.loadMoreRailsBtn}
+                  onPress={() => setRenderedRailsCount(prev => prev + 6)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.loadMoreRailsText}>
+                    Carregar Mais Canais (+{enabledChannels.length - renderedRailsCount} restantes) ↓
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* 5. PLAYLISTS & SERIES RAIL (If any exists) */}
               {playlistVideos.length > 0 && (
@@ -715,5 +729,22 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontSize: 13,
     fontWeight: '700',
+  },
+  loadMoreRailsBtn: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 24,
+    paddingVertical: 14,
+    backgroundColor: '#1E2235',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2E3550',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreRailsText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

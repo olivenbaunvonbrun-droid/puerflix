@@ -31,7 +31,10 @@ export const NetflixRail: React.FC<NetflixRailProps> = React.memo(({
 
   const keyExtractor = useCallback((item: Video) => item.id, []);
 
-  if (videos.length === 0) return null;
+  // Cap rail to 10 items for maximum Android tablet performance (users can tap 'Ver tudo' for full channel catalog)
+  const railVideos = React.useMemo(() => videos.slice(0, 10), [videos]);
+
+  if (railVideos.length === 0) return null;
 
   const cardWidth = isTablet ? 260 : Math.max(180, Math.min(215, Math.floor(width * 0.52)));
   const itemTotalWidth = cardWidth + 12;
@@ -65,7 +68,7 @@ export const NetflixRail: React.FC<NetflixRailProps> = React.memo(({
       {/* Virtualized Horizontal Cards Rail */}
       <FlatList
         horizontal
-        data={videos}
+        data={railVideos}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemLayout={getItemLayout}

@@ -291,13 +291,24 @@ export const YouTubeService = {
     const enabledChannels = channels.filter(c => c.enabled);
     if (enabledChannels.length === 0) return [];
 
-    const promises = enabledChannels.map(channel => this.fetchChannelVideos(channel));
-    const results = await Promise.allSettled(promises);
-
     const allVideos: Video[] = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        allVideos.push(...result.value);
+    const chunkSize = 3;
+
+    for (let i = 0; i < enabledChannels.length; i += chunkSize) {
+      const chunk = enabledChannels.slice(i, i + chunkSize);
+      const chunkResults = await Promise.allSettled(
+        chunk.map(channel => this.fetchChannelVideos(channel))
+      );
+
+      for (const res of chunkResults) {
+        if (res.status === 'fulfilled') {
+          allVideos.push(...res.value);
+        }
+      }
+
+      // Yield 30ms to the JS event loop between batches so touch/scroll events remain 60 FPS
+      if (i + chunkSize < enabledChannels.length) {
+        await new Promise(r => setTimeout(r, 30));
       }
     }
 

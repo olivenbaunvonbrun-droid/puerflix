@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>PuerFlix Safe Player</title>
   <style>
     * {
@@ -35,8 +36,8 @@
     }
     .loading-spinner {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border: 3px solid rgba(255, 255, 255, 0.1);
       border-top-color: #10B981;
       border-radius: 50%;
@@ -47,6 +48,16 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    /* Clean safety styles: Hide YouTube watermark & share button without tripping adblock checks */
+    .ytp-impression-link,
+    .ytp-youtube-button,
+    .ytp-title-link,
+    .ytp-watermark,
+    .ytp-share-button {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
@@ -55,6 +66,7 @@
     <iframe
       id="yt-iframe"
       src="about:blank"
+      referrerpolicy="strict-origin-when-cross-origin"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
       allowfullscreen
     ></iframe>
@@ -63,15 +75,22 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v') || urlParams.get('videoId') || '';
-    const mode = urlParams.get('mode') || 'nocookie'; // default to nocookie for clean playback
-    const baseHost = mode === 'standard' ? 'https://www.youtube.com' : 'https://www.youtube-nocookie.com';
+    const mode = urlParams.get('mode') || 'standard'; // standard or nocookie
+    const baseHost = mode === 'nocookie' ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com';
 
     const iframe = document.getElementById('yt-iframe');
     const spinner = document.getElementById('spinner');
 
     if (videoId) {
+      // Must include origin and widget_referrer so YouTube verifies the embed domain and avoids Error 153
+      const currentOrigin = window.location.origin || 'https://puerflix.vercel.app';
+      const currentHref = window.location.href || 'https://puerflix.vercel.app/player';
+      
       const embedUrl = baseHost + '/embed/' + encodeURIComponent(videoId) + 
-        '?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1';
+        '?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&fs=1' +
+        '&origin=' + encodeURIComponent(currentOrigin) +
+        '&widget_referrer=' + encodeURIComponent(currentHref);
+
       iframe.src = embedUrl;
       iframe.onload = function() {
         if (spinner) spinner.style.display = 'none';
@@ -79,9 +98,6 @@
     } else {
       if (spinner) spinner.style.display = 'none';
     }
-
-    // Intercept window.open to prevent popup escapes
-    window.open = function() { return null; };
   </script>
 </body>
 </html>
