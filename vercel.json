@@ -3,6 +3,7 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/obrigado", "destination": "/obrigado.html" },
-    { "source": "/instalar", "destination": "/obrigado.html" }
+    { "source": "/instalar", "destination": "/obrigado.html" },
+    { "source": "/player", "destination": "/player.html" }
   ]
 }

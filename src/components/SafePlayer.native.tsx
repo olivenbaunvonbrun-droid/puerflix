@@ -7,9 +7,9 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import YoutubePlayer from 'react-native-youtube-iframe';
+import { WebView } from 'react-native-webview';
 import { THEME } from '../constants/theme';
-import { ShieldCheck, Maximize2 } from 'lucide-react-native';
+import { ShieldCheck, Maximize2, RefreshCw } from 'lucide-react-native';
 
 interface SafePlayerProps {
   videoId: string;
@@ -20,17 +20,21 @@ interface SafePlayerProps {
   customWidth?: number;
 }
 
-// Injected JavaScript to:
-// 1. Remove/hide YouTube watermark, "Assista no YouTube" button, video titles, and ads
-// 2. Disable window.open to prevent popup windows/browser escape
-// 3. Intercept and block all link clicks to prevent escaping to YouTube app or browser
-const INJECTED_BLOCK_REDIRECT_SCRIPT = `
+type EngineMode = 'nocookie' | 'cloud' | 'standard';
+
+// Safe containment script:
+// 1. Removes YouTube watermark, YouTube logo button, and title links
+// 2. Disables window.open to prevent popup escapes
+// 3. IMPORTANT: DO NOT inject CSS targeting .video-ads or .ytp-ad-module!
+//    YouTube's anti-adblock bot detection inspects ad slot dimensions.
+//    Hiding ad containers via display:none triggers "Faça login para confirmar que você não é um bot".
+const SAFE_CONTAINMENT_SCRIPT = `
 (function() {
-  function applyBlocker() {
-    var style = document.getElementById('puertube-safety-styles');
+  function applyContainment() {
+    var style = document.getElementById('puerflix-containment-styles');
     if (!style) {
       style = document.createElement('style');
-      style.id = 'puertube-safety-styles';
+      style.id = 'puerflix-containment-styles';
       style.innerHTML = \`
         .ytp-impression-link,
         .ytp-youtube-button,
@@ -38,12 +42,9 @@ const INJECTED_BLOCK_REDIRECT_SCRIPT = `
         .ytp-title,
         .ytp-watermark,
         .ytp-pause-overlay,
-        .ytp-ad-overlay-container,
-        .ytp-ad-message-container,
-        .ytp-ad-module,
-        .video-ads,
-        a[href*="youtube.com/watch"],
-        a[href*="youtu.be"],
+        .ytp-share-button,
+        .ytp-show-cards-title,
+        .ytp-overflow-button,
         .ytp-contextmenu {
           display: none !important;
           opacity: 0 !important;
@@ -55,30 +56,17 @@ const INJECTED_BLOCK_REDIRECT_SCRIPT = `
     }
   }
 
-  applyBlocker();
-  document.addEventListener('DOMContentLoaded', applyBlocker);
+  applyContainment();
+  document.addEventListener('DOMContentLoaded', applyContainment);
   if (window.MutationObserver) {
     try {
-      var observer = new MutationObserver(applyBlocker);
+      var observer = new MutationObserver(applyContainment);
       observer.observe(document.documentElement, { childList: true, subtree: true });
     } catch(e) {}
   }
 
-  // Prevent window.open calls
+  // Prevent window.open calls to open external browsers
   window.open = function() { return null; };
-
-  // Intercept all link clicks in capture phase to prevent external navigation
-  document.addEventListener('click', function(e) {
-    var el = e.target;
-    while (el && el !== document) {
-      if (el.tagName === 'A') {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }
-      el = el.parentNode;
-    }
-  }, true);
 })();
 true;
 `;
@@ -93,13 +81,10 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [measuredWidth, setMeasuredWidth] = useState<number>(0);
+  const [engineMode, setEngineMode] = useState<EngineMode>('nocookie');
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isTablet = windowWidth >= 768;
 
-  // Responsive dimension calculations:
-  // - In fullscreen: fill the entire device viewport (windowWidth x windowHeight)
-  // - In normal mode: adapt EXACTLY to container layout width measured by onLayout,
-  //   preventing any overflow, clipping, or touch-event displacement
   const playerWidth = isFullScreen
     ? windowWidth
     : measuredWidth > 0
@@ -113,6 +98,86 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
   const playerHeight = isFullScreen
     ? windowHeight
     : Math.floor((playerWidth * 9) / 16);
+
+  // Build the target embed URL based on active engine
+  let activeUrl = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(
+    videoId
+  )}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`;
+
+  if (engineMode === 'cloud') {
+    activeUrl = `https://puerflix.vercel.app/player?v=${encodeURIComponent(
+      videoId
+    )}&mode=nocookie`;
+  } else if (engineMode === 'standard') {
+    activeUrl = `https://www.youtube.com/embed/${encodeURIComponent(
+      videoId
+    )}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1`;
+  }
+
+  const cycleEngine = () => {
+    setLoading(true);
+    if (engineMode === 'nocookie') {
+      setEngineMode('cloud');
+    } else if (engineMode === 'cloud') {
+      setEngineMode('standard');
+    } else {
+      setEngineMode('nocookie');
+    }
+  };
+
+  const getEngineLabel = () => {
+    switch (engineMode) {
+      case 'nocookie':
+        return 'Servidor 1 (Sem Rastreio)';
+      case 'cloud':
+        return 'Servidor 2 (Nuvem PuerFlix)';
+      case 'standard':
+        return 'Servidor 3 (YouTube Direto)';
+    }
+  };
+
+  const handleShouldStartLoad = (request: any) => {
+    const url = request.url || '';
+
+    // 1. Strictly block escaping to external native apps (YouTube, Play Store)
+    if (
+      url.startsWith('intent://') ||
+      url.startsWith('vnd.youtube') ||
+      url.startsWith('market://')
+    ) {
+      return false;
+    }
+
+    // 2. Prevent escaping to general YouTube browsing, channels, or watch pages
+    if (
+      url.includes('youtube.com/watch') ||
+      url.includes('youtube.com/channel') ||
+      url.includes('youtube.com/c/') ||
+      url.includes('youtube.com/@') ||
+      url.includes('youtube.com/user') ||
+      url.includes('youtube.com/results') ||
+      url.includes('youtube.com/feed')
+    ) {
+      return false;
+    }
+
+    // 3. ALLOW human verification and Google accounts inside the player WebView
+    // If YouTube prompts "Faça login para confirmar que você não é um bot",
+    // the user CAN complete the login/captcha once, saving cookies in Android WebView permanently!
+    if (
+      url.includes('accounts.google.com') ||
+      url.includes('google.com/signin') ||
+      url.includes('apis.google.com') ||
+      url.includes('gstatic.com') ||
+      url.includes('google.com/recaptcha') ||
+      url.includes('youtube.com/signin')
+    ) {
+      return true;
+    }
+
+    // 4. Allow player embeds, media streams, and assets
+    return true;
+  };
 
   return (
     <View
@@ -144,71 +209,39 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           </View>
         )}
 
-        <YoutubePlayer
-          height={playerHeight}
-          width={playerWidth}
-          play={true}
-          videoId={videoId}
-          useLocalHTML={true}
-          baseUrlOverride="https://puerflix.vercel.app"
-          onReady={() => {
+        <WebView
+          key={`${videoId}-${engineMode}`}
+          source={{ uri: activeUrl }}
+          style={{
+            width: playerWidth,
+            height: playerHeight,
+            backgroundColor: '#000000',
+          }}
+          allowsFullscreenVideo={true}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          thirdPartyCookiesEnabled={true}
+          sharedCookiesEnabled={true}
+          cacheEnabled={true}
+          androidHardwareAccelerationDisabled={false}
+          androidLayerType="hardware"
+          originWhitelist={['*']}
+          injectedJavaScript={SAFE_CONTAINMENT_SCRIPT}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => {
             setLoading(false);
             if (onReady) onReady();
           }}
-          onChangeState={(state: string) => {
-            if (onChangeState) onChangeState(state);
-          }}
-          onFullScreenChange={(status: boolean) => {
-            if (onToggleFullScreen && status !== isFullScreen) {
-              onToggleFullScreen();
-            }
-          }}
-          initialPlayerParams={{
-            preventFullScreen: false,
-            controls: true,
-            modestbranding: true,
-            rel: false, // Prevents external recommendations
-            showClosedCaptions: true,
-            iv_load_policy: 3, // Suppresses video annotations
-          }}
-          webViewProps={{
-            allowsFullscreenVideo: true,
-            androidHardwareAccelerationDisabled: false,
-            androidLayerType: 'hardware',
-            domStorageEnabled: true,
-            thirdPartyCookiesEnabled: true,
-            sharedCookiesEnabled: true,
-            mediaPlaybackRequiresUserAction: false,
-            userAgent:
-              'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-            setSupportMultipleWindows: false,
-            javaScriptCanOpenWindowsAutomatically: false,
-            originWhitelist: ['*'],
-            injectedJavaScript: INJECTED_BLOCK_REDIRECT_SCRIPT,
-            onShouldStartLoadWithRequest: (request: any) => {
-              const url = request.url || '';
-              // Intercept and prevent external app launches and direct watch/channel URL escapes
-              if (
-                url.startsWith('intent://') ||
-                url.startsWith('vnd.youtube') ||
-                url.startsWith('market://') ||
-                url.includes('youtube.com/watch') ||
-                url.includes('youtube.com/channel') ||
-                url.includes('youtube.com/c/') ||
-                url.includes('youtube.com/@') ||
-                url.includes('youtube.com/user') ||
-                url.includes('youtube.com/redirect')
-              ) {
-                return false;
-              }
-              // Allow all player assets, Google integrity verification APIs, and video streams
-              return true;
-            },
+          onError={() => {
+            setLoading(false);
           }}
         />
       </View>
 
-      {/* Control bar when not in fullscreen - fully contained in 100% width */}
+      {/* Control & Safety bar beneath the player (when not in fullscreen) */}
       {!isFullScreen && (
         <View style={styles.assistantBar}>
           <View style={styles.safeTag}>
@@ -216,17 +249,28 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
             <Text style={styles.safeTagText}>Reprodução Protegida</Text>
           </View>
 
-          {onToggleFullScreen && (
+          <View style={styles.actionsRow}>
             <TouchableOpacity
-              style={styles.fullscreenBtn}
-              onPress={onToggleFullScreen}
+              style={styles.engineBtn}
+              onPress={cycleEngine}
               activeOpacity={0.8}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Maximize2 size={13} color="#FFFFFF" />
-              <Text style={styles.fullscreenBtnText}>Tela Cheia</Text>
+              <RefreshCw size={12} color="#D4D4D4" />
+              <Text style={styles.engineBtnText}>{getEngineLabel()}</Text>
             </TouchableOpacity>
-          )}
+
+            {onToggleFullScreen && (
+              <TouchableOpacity
+                style={styles.fullscreenBtn}
+                onPress={onToggleFullScreen}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Maximize2 size={13} color="#FFFFFF" />
+                <Text style={styles.fullscreenBtnText}>Tela Cheia</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -284,6 +328,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#10B981',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  engineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#2C2C2E',
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+  },
+  engineBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D4D4D4',
   },
   fullscreenBtn: {
     flexDirection: 'row',
