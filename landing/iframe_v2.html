@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <style>
     body { margin: 0; background-color: #000; overflow: hidden; }
     .container { position: relative; width: 100%; height: 0; padding-bottom: 56.25%; }
@@ -38,7 +39,7 @@
     const firstScriptTag = document.getElementsByTagName("script")[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    let player;
+    var player;
     function onYouTubeIframeAPIReady() {
       player = new YT.Player(randomPlayerId, {
         width: "100%",
@@ -52,20 +53,24 @@
           playsinline: 1, enablejsapi: 1, origin: window.location.origin
         },
         events: {
-          onReady: (e) => sendMessageToRN({ eventType: "playerReady" }),
+          onReady: (e) => {
+            window.player = player;
+            sendMessageToRN({ eventType: "playerReady" });
+          },
           onStateChange: (e) => sendMessageToRN({ eventType: "playerStateChange", data: e.data }),
           onPlaybackQualityChange: (e) => sendMessageToRN({ eventType: "playerQualityChange", data: e.data }),
           onPlaybackRateChange: (e) => sendMessageToRN({ eventType: "playerPlaybackRateChange", data: e.data }),
           onError: (e) => sendMessageToRN({ eventType: "playerError", data: e.data })
         }
       });
+      window.player = player;
     }
 
     window.addEventListener("message", (event) => {
       try {
         const parsed = JSON.parse(event.data);
-        if (player && typeof player[parsed.action] === "function") {
-          player[parsed.action](...(parsed.args || []));
+        if (window.player && typeof window.player[parsed.action] === "function") {
+          window.player[parsed.action](...(parsed.args || []));
         }
       } catch(err) {}
     });

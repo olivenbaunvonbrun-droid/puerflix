@@ -1,9 +1,10 @@
 {
   "outputDirectory": "landing",
-  "cleanUrls": true,
+  "cleanUrls": false,
   "rewrites": [
     { "source": "/obrigado", "destination": "/obrigado.html" },
     { "source": "/instalar", "destination": "/obrigado.html" },
-    { "source": "/player", "destination": "/player.html" }
+    { "source": "/player", "destination": "/player.html" },
+    { "source": "/iframe_v2", "destination": "/iframe_v2.html" }
   ]
 }

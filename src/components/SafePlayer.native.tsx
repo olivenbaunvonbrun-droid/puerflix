@@ -87,8 +87,8 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           width={playerWidth}
           play={true}
           videoId={videoId}
-          useLocalHTML={true}
-          baseUrlOverride="https://puerflix.vercel.app"
+          useLocalHTML={false}
+          baseUrlOverride="https://puerflix.vercel.app/iframe_v2"
           forceAndroidAutoplay={false}
           onReady={() => {
             setLoading(false);
@@ -117,13 +117,13 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
             domStorageEnabled: true,
             thirdPartyCookiesEnabled: true,
             sharedCookiesEnabled: true,
+            cacheEnabled: true,
             mediaPlaybackRequiresUserAction: false,
             setSupportMultipleWindows: false,
             javaScriptCanOpenWindowsAutomatically: false,
-            clearCache: true,
             originWhitelist: ['*'],
             userAgent:
-              'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+              'Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             onShouldStartLoadWithRequest: (request: any) => {
               const url = request.url || '';
 
