@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +7,6 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import YoutubePlayer from 'react-native-youtube-iframe';
 import { WebView } from 'react-native-webview';
 import { THEME } from '../constants/theme';
 import { ShieldCheck, Maximize2, RefreshCw } from 'lucide-react-native';
@@ -21,24 +20,34 @@ interface SafePlayerProps {
   customWidth?: number;
 }
 
-type PlayerEngine = 'official' | 'direct' | 'cloud';
+// YouTube requires embedded mobile clients to identify the application origin.
+// The Android package and iOS bundle identifier are both com.puerflix.app.
+const APP_ORIGIN = 'https://com.puerflix.app';
+
+const buildEmbedUrl = (videoId: string) =>
+  `https://www.youtube.com/embed/${encodeURIComponent(
+    videoId
+  )}?autoplay=1&controls=1&playsinline=1&fs=1&rel=0`;
 
 export const SafePlayer: React.FC<SafePlayerProps> = ({
   videoId,
   onReady,
-  onChangeState,
   isFullScreen = false,
   onToggleFullScreen,
   customWidth,
 }) => {
   const [loading, setLoading] = useState(true);
-  const [engine, setEngine] = useState<PlayerEngine>('direct');
   const [hasError, setHasError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [measuredWidth, setMeasuredWidth] = useState<number>(0);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isTablet = windowWidth >= 768;
 
-  // Responsive dimension calculations:
+  useEffect(() => {
+    setLoading(true);
+    setHasError(false);
+  }, [videoId]);
+
   const playerWidth = isFullScreen
     ? windowWidth
     : measuredWidth > 0
@@ -53,99 +62,13 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
     ? windowHeight
     : Math.floor((playerWidth * 9) / 16);
 
-  const cycleEngine = () => {
+  const embedUrl = buildEmbedUrl(videoId);
+
+  const reloadPlayer = () => {
     setLoading(true);
     setHasError(false);
-    if (engine === 'direct') {
-      setEngine('official');
-    } else if (engine === 'official') {
-      setEngine('cloud');
-    } else {
-      setEngine('direct');
-    }
+    setRetryKey((current) => current + 1);
   };
-
-  const getEngineLabel = () => {
-    switch (engine) {
-      case 'direct':
-        return 'Servidor 1 (YouTube Direto)';
-      case 'official':
-        return 'Servidor 2 (Player Oficial)';
-      case 'cloud':
-        return 'Servidor 3 (Nuvem PuerFlix)';
-    }
-  };
-
-  // Safe navigation interceptor:
-  // Strictly isolates children inside the player while allowing Google sign-in/verification if challenged
-  const handleShouldStartLoad = (request: any) => {
-    const url = request.url || '';
-
-    // 1. Block escaping to external native applications (YouTube app, Play Store)
-    if (
-      url.startsWith('intent://') ||
-      url.startsWith('vnd.youtube') ||
-      url.startsWith('market://')
-    ) {
-      return false;
-    }
-
-    // 2. Block escaping to YouTube browsing, channel homepages, search results
-    if (
-      url.includes('youtube.com/channel') ||
-      url.includes('youtube.com/c/') ||
-      url.includes('youtube.com/@') ||
-      url.includes('youtube.com/user') ||
-      url.includes('youtube.com/results') ||
-      url.includes('youtube.com/feed') ||
-      url.includes('youtube.com/trending')
-    ) {
-      return false;
-    }
-
-    // 3. ALLOW Google sign in and human verification so if YouTube prompts verification, it completes cleanly
-    if (
-      url.includes('accounts.google.com') ||
-      url.includes('google.com/signin') ||
-      url.includes('google.com/recaptcha') ||
-      url.includes('gstatic.com') ||
-      url.includes('youtube.com/signin')
-    ) {
-      return true;
-    }
-
-    // 4. Block general youtube.com/watch ONLY if it is not an embed or signin callback
-    if (url.includes('youtube.com/watch') && !url.includes('embed')) {
-      return false;
-    }
-
-    // 5. Allow all video streams, player assets, and embed frames
-    return true;
-  };
-
-  // Direct HTML for Engine 'direct' (First-Party YouTube Context)
-  const directHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: #000000; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: none; background: #000000; }
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=1&enablejsapi=1"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-    allowfullscreen
-    referrerpolicy="strict-origin-when-cross-origin"
-  ></iframe>
-</body>
-</html>
-  `;
 
   return (
     <View
@@ -172,150 +95,82 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         }}
       >
         {loading && (
-          <View style={styles.loadingOverlay}>
+          <View style={styles.loadingOverlay} pointerEvents="none">
             <ActivityIndicator size="large" color={THEME.colors.primary} />
           </View>
         )}
 
-        {/* ENGINE 1: YouTube Direto com BaseURL Oficial YouTube (Imune a Error 153 e Bloqueios) */}
-        {engine === 'direct' && (
-          <WebView
-            key={`direct-${videoId}`}
-            source={{ html: directHtml, baseUrl: 'https://www.youtube.com' }}
-            style={{
-              width: playerWidth,
-              height: playerHeight,
-              backgroundColor: '#000000',
-            }}
-            allowsFullscreenVideo={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            thirdPartyCookiesEnabled={true}
-            sharedCookiesEnabled={true}
-            cacheEnabled={true}
-            androidHardwareAccelerationDisabled={false}
-            androidLayerType="hardware"
-            originWhitelist={['*']}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => {
-              setLoading(false);
-              if (onReady) onReady();
-            }}
-            onError={() => {
-              setLoading(false);
-              setHasError(true);
-            }}
-          />
-        )}
+        {/*
+          Single native player path.
 
-        {/* ENGINE 2: Player Oficial (react-native-youtube-iframe com UserAgent Nativo e Sem Fake UA) */}
-        {engine === 'official' && (
-          <YoutubePlayer
-            key={`official-${videoId}`}
-            height={playerHeight}
-            width={playerWidth}
-            play={true}
-            videoId={videoId}
-            useLocalHTML={false}
-            forceAndroidAutoplay={false}
-            onReady={() => {
-              setLoading(false);
-              if (onReady) onReady();
-            }}
-            onChangeState={(state: string) => {
-              if (onChangeState) onChangeState(state);
-            }}
-            onError={() => {
-              setLoading(false);
-              setHasError(true);
-            }}
-            onFullScreenChange={(status: boolean) => {
-              if (onToggleFullScreen && status !== isFullScreen) {
-                onToggleFullScreen();
-              }
-            }}
-            initialPlayerParams={{
-              preventFullScreen: false,
-              controls: true,
-              modestbranding: true,
-              rel: false,
-              showClosedCaptions: true,
-              iv_load_policy: 3,
-            }}
-            webViewProps={{
-              allowsFullscreenVideo: true,
-              androidHardwareAccelerationDisabled: false,
-              androidLayerType: 'hardware',
-              domStorageEnabled: true,
-              thirdPartyCookiesEnabled: true,
-              sharedCookiesEnabled: true,
-              cacheEnabled: true,
-              mediaPlaybackRequiresUserAction: false,
-              setSupportMultipleWindows: false,
-              javaScriptCanOpenWindowsAutomatically: false,
-              originWhitelist: ['*'],
-              // Native Android User Agent - DO NOT fake User-Agent to avoid Google BotGuard mismatch
-              onShouldStartLoadWithRequest: handleShouldStartLoad,
-            }}
-          />
-        )}
-
-        {/* ENGINE 3: Nuvem PuerFlix (Hospedagem Vercel com Strict Referrer) */}
-        {engine === 'cloud' && (
-          <WebView
-            key={`cloud-${videoId}`}
-            source={{
-              uri: `https://puerflix.vercel.app/player?v=${encodeURIComponent(
-                videoId
-              )}&mode=standard`,
-            }}
-            style={{
-              width: playerWidth,
-              height: playerHeight,
-              backgroundColor: '#000000',
-            }}
-            allowsFullscreenVideo={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            thirdPartyCookiesEnabled={true}
-            sharedCookiesEnabled={true}
-            cacheEnabled={true}
-            androidHardwareAccelerationDisabled={false}
-            androidLayerType="hardware"
-            originWhitelist={['*']}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => {
-              setLoading(false);
-              if (onReady) onReady();
-            }}
-            onError={() => {
-              setLoading(false);
-              setHasError(true);
-            }}
-          />
-        )}
+          Important: load the YouTube embed directly in the system WebView and
+          identify PuerFlix through the HTTP Referer header. Avoid local HTML,
+          iframe-inside-WebView wrappers, Vercel proxy pages and spoofed user agents.
+        */}
+        <WebView
+          key={`youtube-${videoId}-${retryKey}`}
+          source={{
+            uri: embedUrl,
+            headers: {
+              Referer: APP_ORIGIN,
+            },
+          }}
+          style={{
+            width: playerWidth,
+            height: playerHeight,
+            backgroundColor: '#000000',
+          }}
+          allowsFullscreenVideo={true}
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          thirdPartyCookiesEnabled={true}
+          sharedCookiesEnabled={true}
+          cacheEnabled={true}
+          androidHardwareAccelerationDisabled={false}
+          androidLayerType="hardware"
+          setSupportMultipleWindows={false}
+          javaScriptCanOpenWindowsAutomatically={false}
+          mixedContentMode="never"
+          onLoadStart={() => {
+            setLoading(true);
+            setHasError(false);
+          }}
+          onLoadEnd={() => {
+            setLoading(false);
+            if (onReady) onReady();
+          }}
+          onError={(event) => {
+            console.warn('PuerFlix YouTube WebView error:', event.nativeEvent);
+            setLoading(false);
+            setHasError(true);
+          }}
+          onHttpError={(event) => {
+            console.warn(
+              'PuerFlix YouTube HTTP error:',
+              event.nativeEvent.statusCode,
+              event.nativeEvent.description
+            );
+            setLoading(false);
+            setHasError(true);
+          }}
+        />
       </View>
 
-      {/* Error Recovery Banner if a specific engine fails */}
       {hasError && !isFullScreen && (
         <TouchableOpacity
           style={styles.errorBanner}
-          onPress={cycleEngine}
+          onPress={reloadPlayer}
           activeOpacity={0.85}
         >
+          <RefreshCw size={13} color="#FEE2E2" />
           <Text style={styles.errorBannerText}>
-            Problema com a reprodução? Toque para alternar o servidor
+            Falha na reprodução. Toque para tentar novamente.
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* Control & Assistant bar beneath the player (when not in fullscreen) */}
       {!isFullScreen && (
         <View style={styles.assistantBar}>
           <View style={styles.safeTag}>
@@ -325,12 +180,13 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
 
           <View style={styles.actionsRow}>
             <TouchableOpacity
-              style={styles.engineBtn}
-              onPress={cycleEngine}
+              style={styles.reloadBtn}
+              onPress={reloadPlayer}
               activeOpacity={0.8}
+              accessibilityLabel="Recarregar vídeo"
             >
               <RefreshCw size={12} color="#D4D4D4" />
-              <Text style={styles.engineBtnText}>{getEngineLabel()}</Text>
+              <Text style={styles.reloadBtnText}>Recarregar</Text>
             </TouchableOpacity>
 
             {onToggleFullScreen && (
@@ -408,7 +264,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  engineBtn: {
+  reloadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -419,7 +275,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3F3F46',
   },
-  engineBtnText: {
+  reloadBtnText: {
     fontSize: 11,
     fontWeight: '600',
     color: '#D4D4D4',
@@ -441,8 +297,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   errorBanner: {
+    flexDirection: 'row',
+    gap: 6,
     backgroundColor: '#7F1D1D',
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
