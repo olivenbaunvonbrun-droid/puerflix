@@ -133,6 +133,17 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           setSupportMultipleWindows={false}
           javaScriptCanOpenWindowsAutomatically={false}
           mixedContentMode="never"
+          onShouldStartLoadWithRequest={(request) => {
+            const url = request.url || '';
+            if (
+              url.startsWith('intent://') ||
+              url.startsWith('vnd.youtube') ||
+              url.startsWith('market://')
+            ) {
+              return false;
+            }
+            return true;
+          }}
           onLoadStart={() => {
             setLoading(true);
             setHasError(false);
