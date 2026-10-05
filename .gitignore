@@ -48,3 +48,6 @@ puertube.apk
 test_pil.py
 generate_splash.py
 data/
+*.idsig
+scratch/
+
