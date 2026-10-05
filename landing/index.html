@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PuerFlix — O Streaming Seguro e Educativo para Crianças</title>
-  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="shortcut icon" href="assets/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
@@ -216,6 +218,31 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    /* Official Brand Banner Showcase */
+    .official-banner-wrapper {
+      max-width: 940px;
+      margin: 36px auto 30px;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75), 0 0 50px rgba(99, 102, 241, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.3s ease;
+      background: #0D0F18;
+    }
+
+    .official-banner-wrapper:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 60px rgba(99, 102, 241, 0.35);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .official-banner-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 22px;
     }
 
     /* Device Mockup Showcase */
@@ -823,7 +850,7 @@
   <header class="header-bar">
     <div class="container header-content">
       <a href="#" class="logo-container">
-        <img src="assets/logo.png" alt="PuerFlix Logo" class="logo-img" onerror="this.src='assets/icon.png'">
+        <img src="assets/icon.png" alt="PuerFlix Logo" class="logo-img" onerror="this.src='assets/logo.png'">
         <span class="logo-text">PUER<span>FLIX</span></span>
       </a>
       <a href="#planos" class="header-cta">Garantir Meu Acesso</a>
@@ -858,6 +885,11 @@
           <span>⚡ Instalação em 3 Minutos</span>
           <span>🛡️ Garantia de 7 Dias</span>
         </div>
+      </div>
+
+      <!-- Official Brand Banner Showcase -->
+      <div class="official-banner-wrapper">
+        <img src="assets/banner_puerflix.png" alt="PuerFlix — Desenhos e aprendizagem com segurança" class="official-banner-img">
       </div>
 
       <!-- App Interface Showcase Mockup -->
