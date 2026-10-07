@@ -36,6 +36,28 @@ const buildEmbedUrl = (videoId: string) =>
     videoId
   )}?autoplay=1&controls=1&playsinline=1&fs=1&rel=0`;
 
+const buildPlayerHtml = (videoId: string) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000000; overflow: hidden; }
+    iframe { width: 100%; height: 100%; border: none; }
+  </style>
+</head>
+<body>
+  <iframe
+    id="yt-player"
+    src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&controls=1&playsinline=1&fs=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(APP_ORIGIN)}"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+    allowfullscreen
+  ></iframe>
+</body>
+</html>
+`;
+
 const buildWatchUrl = (videoId: string) =>
   `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
 
@@ -170,11 +192,10 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         <WebView
           key={`youtube-${videoId}-${retryKey}`}
           source={{
-            uri: embedUrl,
-            headers: {
-              Referer: APP_ORIGIN,
-            },
+            html: buildPlayerHtml(videoId),
+            baseUrl: APP_ORIGIN,
           }}
+          originWhitelist={['*']}
           style={{
             width: playerWidth,
             height: playerHeight,
